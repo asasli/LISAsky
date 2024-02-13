@@ -1,4 +1,4 @@
-# 2D and 3D Sky Maps Generation
+# LISAsky: 2D and 3D Sky Maps Generation for LISA data
 This project contains code for generating 3D sky maps using FITS (Flexible Image Transport System) files. The codes currently are based on ```ligo.skymap``` package, but they will further extended for LISA objectives. This code is part of my work as LISA-submissions data analyst of [Sangria](https://lisa-ldc.lal.in2p3.fr/challenge2a) SMBHB training set.
 
 ## File Description
@@ -7,8 +7,8 @@ This project contains code for generating 3D sky maps using FITS (Flexible Image
 
 ## How to Run
 
-1. Open the `3Dmaps.ipynb` file in a Jupyter notebook environment.
-2. Follow the instructions to create the conda environment. 
+1. Follow the instructions to create the conda environment. 
+2. Open the `3Dmaps.ipynb` file in a Jupyter notebook environment.
 3. Run the `plot_skymaps` function with the appropriate parameters.
 
 ## Function Parameters
