@@ -5,7 +5,7 @@ I would like to thank Dr. Quentin Baghi for his comments and suggestions.
 ## File Description
 
 - `3Dmaps.ipynb` : This is a Jupyter notebook that contains an example for generating the 3D sky maps.
-- `sky_utils.py` : Utilities for the sky maps
+- `sky_utils.py` : Utilities for the sky maps (you can choose between 'ICRS' and 'Galactic' coordinates - by default is ```frame = 'icrs'```)
 
 ## How to Run
 
