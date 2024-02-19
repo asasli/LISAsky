@@ -1,8 +1,6 @@
 ################ *** General for the plots *** ################
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import matplotlib.colors as colors
-%matplotlib inline
 
 # plt.style.use(['seaborn-ticks','seaborn-deep'])
 plt.style.use(['seaborn-v0_8-ticks','seaborn-v0_8-deep'])
@@ -90,18 +88,17 @@ def write_maps_fits(pts, dirname, name, trials=5, jobs=8):
     fits_filename = os.path.join(dirname,"{}_skymap.fits".format(name))
     io.write_sky_map(fits_filename, hpmap, nest=True)
 
-def plot_skymaps(ra, dec, dist, chains, 
+def plot_skymaps(pointer, dist, chains, 
                  dirname, name, fits_filename,
                  figwidth=3.5, dpi=300, 
-                 contour_levels=[50, 90], transparent=True):
+                 contour_levels=[50, 90], frame='icrs', transparent=True):
     """Generate 3D and 2D sky map from fits file.
 
     Parameters
     ----------
-    ra : float
-        True right ascension in rad.
-    dec : float
-        True declination in rad.
+    pointer : list
+        True right ascension and declination in rad.
+        or True galactic longitude and latitude in rad.
     dist : float
         True distance.
     chains : dictionary, optional
@@ -139,6 +136,10 @@ def plot_skymaps(ra, dec, dist, chains,
     except ImportError as e:
         logger.info("Unable to generate skymap: error {}".format(e))
         return
+    if frame == 'icrs':
+        cmap = 'cylon'
+    elif frame == 'galactic':
+        cmap = 'Blues'
 
     # Read sky map
     skymap, metadata = io.fits.read_sky_map(fits_filename, nest=None)
@@ -158,11 +159,6 @@ def plot_skymaps(ra, dec, dist, chains,
              np.atleast_2d(chains['distances']).T).T)
         
     print('Starting volumetric image...')
-
-    # Color palette for markers
-    colors = seaborn.color_palette(n_colors=3 + 1)
-    truth_marker = marker.reticle(
-        inner=0.5 * np.sqrt(2), outer=1.5 * np.sqrt(2), angle=45)
 
     fig = plt.figure(frameon=False)
     n = 2
@@ -190,7 +186,7 @@ def plot_skymaps(ra, dec, dist, chains,
         ax.imshow(
             density, origin='lower',
             extent=[-max_distance, max_distance, -max_distance, max_distance],
-            cmap="cylon")
+            cmap=cmap)
     
         # Add contours
         if contour_levels is not None:
@@ -203,15 +199,19 @@ def plot_skymaps(ra, dec, dist, chains,
             u, v = np.meshgrid(s, s)
             contourset = ax.contour(
                 u, v, cumsum, levels=contour_levels, linewidths=0.5)
-
-        # Mark locations
+            
         ax._get_lines.get_next_color()  # skip default color
-        theta = 0.5 * np.pi - dec
-        phi = ra
-        xyz = np.dot(R.T, (hp.ang2vec(
-             0.5 * np.pi - dec, ra) *
-             np.atleast_2d(dist).T).T)
-        ax.plot(xyz[axis0], xyz[axis1], marker=truth_marker,
+        # Mark locations
+        if pointer is not None:
+            truth_marker = marker.reticle(
+                inner=0.5 * np.sqrt(2), outer=1.5 * np.sqrt(2), angle=45)    
+            ra, dec = pointer
+            theta = 0.5 * np.pi - dec
+            phi = ra
+            xyz = np.dot(R.T, (hp.ang2vec(
+                theta, phi) *
+                np.atleast_2d(dist).T).T)
+            ax.plot(xyz[axis0], xyz[axis1], marker=truth_marker,
                 markerfacecolor='none', markeredgewidth=1)
     
         # Plot chain
@@ -280,7 +280,7 @@ def plot_skymaps(ra, dec, dist, chains,
                             nested=metadata['nest'],
                             vmin=0.,
                             vmax=vmax,
-                            cmap="cylon")
+                            cmap=cmap)
     cb = plot.colorbar(img)
     cb.set_label(r'prob. per deg$^2$')
     confidence_levels = 100 * postprocess.find_greedy_credible_levels(skymap)
@@ -301,8 +301,8 @@ def plot_skymaps(ra, dec, dist, chains,
     for i, p in zip(ii, pp):
         text.append(u'{:d}% area: {:d} deg$^2$'.format(p, i))
     ax.text(1, 1, '\n'.join(text), transform=ax.transAxes, ha='right')
-
-    ax.scatter((ra*units.rad).to_value(units.deg), 
+    if pointer is not None:
+        ax.scatter((ra*units.rad).to_value(units.deg), 
                (dec*units.rad).to_value(units.deg), 
                color="darkorchid", marker='x', 
                transform=ax.get_transform('world'))
@@ -310,3 +310,20 @@ def plot_skymaps(ra, dec, dist, chains,
     figname = figs_dir + 'skymap_' + str(name) + '.pdf'
     plt.savefig(figname, transparent=transparent)
     print('Image saved at {}'.format((str(figname))))
+
+def convert_to_frame_from_ecliptic(samples, frame='icrs'):
+    """Convert samples from ecliptic coordinates to a given frame.
+    """
+    from astropy.coordinates import SkyCoord
+    import astropy.units as units
+    import numpy as np
+    c = SkyCoord(samples[:,0]*units.rad, samples[:,1]*units.rad, frame="barycentrictrueecliptic")
+    if frame == 'icrs':
+        c_conv = c.transform_to('icrs')
+        pts = np.column_stack((c_conv.ra.rad, c_conv.dec.rad))
+    elif frame == 'galactic':
+        c_conv = c.transform_to('galactic')
+        pts = np.column_stack((c_conv.l.rad, c_conv.b.rad))
+    else:
+        raise ValueError("Frame not recognized")
+    return pts
